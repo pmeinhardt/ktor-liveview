@@ -8,6 +8,7 @@ import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.html.*
+import kotlinx.html.consumers.*
 import kotlinx.html.stream.*
 
 class LiveViewContext(val connected: Boolean, val parameters: Parameters)
@@ -17,7 +18,7 @@ abstract class LiveView {
 }
 
 fun LiveView.html(block: HTML.() -> Unit): String =
-    buildString { append("<!DOCTYPE html>\n").appendHTML().html(block = block) }
+    buildString { append("<!DOCTYPE html>\n").appendHTML().live().html(block = block) }
 
 fun Route.live(path: String, init: LiveViewContext.() -> LiveView) {
     get(path) {
@@ -42,3 +43,18 @@ fun Route.live(path: String, init: LiveViewContext.() -> LiveView) {
         }
     }
 }
+
+private class InjectScriptTagConsumer<T>(
+    val downstream: TagConsumer<T>, val attributes: Map<String, String>
+) : TagConsumer<T> by downstream {
+    override fun onTagEnd(tag: Tag) {
+        if (tag.tagName == "body") {
+            SCRIPT(attributes, downstream).visit {}
+        }
+
+        downstream.onTagEnd(tag)
+    }
+}
+
+fun <T> TagConsumer<T>.live(): TagConsumer<T> =
+    InjectScriptTagConsumer(this, mapOf("src" to "live.js")).delayed()
