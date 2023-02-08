@@ -6,11 +6,11 @@ import io.ktor.server.routing.*
 import java.util.Date
 import kotlinx.html.*
 
-class Index(private val name: String) : LiveView() {
+class Index(private val connected: Boolean, private val name: String) : LiveView() {
     override fun render(): String =
         html {
             head { title { +"Hello $name" } }
-            body { p { +"It is ${now()}" } }
+            body { p { +"It is ${now()} ($connected)" } }
         }
 
     private fun now() = Date()
@@ -22,7 +22,7 @@ fun Application.configureRouting() {
     routing {
         live("/") {
             val name = parameters["name"] ?: "Ktor"
-            Index(name)
+            Index(connected, name)
         }
     }
 }

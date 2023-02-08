@@ -10,7 +10,7 @@ import io.ktor.websocket.*
 import kotlinx.html.*
 import kotlinx.html.stream.*
 
-class LiveViewContext(val parameters: Parameters)
+class LiveViewContext(val connected: Boolean, val parameters: Parameters)
 
 abstract class LiveView {
     abstract fun render(): String
@@ -21,7 +21,7 @@ fun LiveView.html(block: HTML.() -> Unit): String =
 
 fun Route.live(path: String, init: LiveViewContext.() -> LiveView) {
     get(path) {
-        val context = LiveViewContext(call.parameters)
+        val context = LiveViewContext(false, call.parameters)
         val view = init(context)
 
         val content = view.render()
@@ -33,7 +33,7 @@ fun Route.live(path: String, init: LiveViewContext.() -> LiveView) {
     }
 
     webSocket(path) {
-        val context = LiveViewContext(call.parameters)
+        val context = LiveViewContext(true, call.parameters)
         val view = init(context)
 
         for (msg in incoming) {
