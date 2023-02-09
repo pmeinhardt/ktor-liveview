@@ -44,7 +44,8 @@ class LiveRouting(private val route: Route, private val scope: LiveViewScope) {
 
                 checkNotNull(init) { "" }
 
-                val context = LiveViewContext(true, call.parameters)
+                val parameters = parametersOf(hello.parameters.mapValues { listOf(it.value) })
+                val context = LiveViewContext(true, parameters)
                 val view = init(context)
 
                 send(Frame.Text(view.render()))
