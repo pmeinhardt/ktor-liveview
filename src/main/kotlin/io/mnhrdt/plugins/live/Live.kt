@@ -76,19 +76,4 @@ abstract class LiveView {
 }
 
 fun LiveView.html(block: HTML.() -> Unit): String =
-    buildString { append("<!DOCTYPE html>\n").appendHTML().live().html(block = block) }
-
-private class InjectScriptTagConsumer<T>(
-    val downstream: TagConsumer<T>, val attributes: Map<String, String>
-) : TagConsumer<T> by downstream {
-    override fun onTagEnd(tag: Tag) {
-        if (tag.tagName == "body") {
-            SCRIPT(attributes, downstream).visit {}
-        }
-
-        downstream.onTagEnd(tag)
-    }
-}
-
-fun <T> TagConsumer<T>.live(): TagConsumer<T> =
-    InjectScriptTagConsumer(this, mapOf("src" to "live.js")).delayed()
+    buildString { append("<!DOCTYPE html>\n").appendHTML().html(block = block) }

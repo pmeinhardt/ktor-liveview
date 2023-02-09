@@ -1,0 +1,26 @@
+{
+  "name": "ktor-liveview",
+  "version": "0.0.1",
+  "scripts": {
+    "build": "parcel build --no-autoinstall --no-content-hash --dist-dir build index.ts",
+    "watch": "parcel watch --no-autoinstall --no-content-hash --dist-dir build index.ts",
+    "check": "tsc --noEmit",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint --ignore-path .gitignore ."
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.51.0",
+    "@typescript-eslint/parser": "^5.51.0",
+    "eslint": "^8.33.0",
+    "eslint-config-prettier": "^8.6.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-simple-import-sort": "^10.0.0",
+    "parcel": "^2.8.3",
+    "prettier": "^2.8.4",
+    "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "mitt": "^3.0.0"
+  }
+}

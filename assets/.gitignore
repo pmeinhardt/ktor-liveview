@@ -1,0 +1,35 @@
+# Build artefacts
+/build/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Optional ESLint cache
+.eslintcache
+
+# Output of `npm pack`
+*.tgz
+
+# dotenv environment variables file
+.env
+.env.test
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Parcel bundler cache (https://parceljs.org/)
+.parcel-cache
