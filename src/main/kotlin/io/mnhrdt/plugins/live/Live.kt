@@ -8,8 +8,8 @@ import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.html.*
-import kotlinx.html.consumers.*
 import kotlinx.html.stream.*
+import kotlinx.serialization.*
 
 class LiveViewScope private constructor(options: Options) {
     internal var installed = false
@@ -29,18 +29,26 @@ class LiveViewScope private constructor(options: Options) {
 
 class LiveViewContext(val connected: Boolean, val parameters: Parameters)
 
+@Serializable
+data class LiveHello(val path: String, val parameters: Map<String, String>)
+
 class LiveRouting(private val route: Route, private val scope: LiveViewScope) {
     private val handlers = mutableMapOf<String, LiveViewContext.() -> LiveView>()
 
     init {
         if (!scope.installed) {
             route.webSocket(scope.endpoint) {
-                val context = LiveViewContext(true, call.parameters)
-                val init = handlers[""]
+                val hello = receiveDeserialized<LiveHello>()
+                val init = handlers[hello.path]
 
                 checkNotNull(init) { "" }
 
+                val context = LiveViewContext(true, call.parameters)
                 val view = init(context)
+
+                send(Frame.Text(view.render()))
+
+                // TODO: Send server-side events/react to server view state updates
 
                 for (msg in incoming) {
                     val content = view.render()

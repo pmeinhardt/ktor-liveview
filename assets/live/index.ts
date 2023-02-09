@@ -1,5 +1,6 @@
 import resolve from "./resolve";
 import Socket from "./Socket";
+import View from "./View";
 
 export function setup(endpoint: string) {
   if (["complete", "interactive", "loaded"].includes(document.readyState)) {
@@ -11,6 +12,9 @@ export function setup(endpoint: string) {
 
 export function connect(endpoint: string) {
   const socket = new Socket(resolve(endpoint));
+  const view = new View(socket, document.documentElement);
+
+  view.join();
 
   socket.on("open", (event) => {
     console.debug("socket open:", event);
