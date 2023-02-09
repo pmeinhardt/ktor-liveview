@@ -21,6 +21,7 @@
     "typescript": "^4.9.5"
   },
   "dependencies": {
-    "mitt": "^3.0.0"
+    "mitt": "^3.0.0",
+    "morphdom": "^2.7.0"
   }
 }

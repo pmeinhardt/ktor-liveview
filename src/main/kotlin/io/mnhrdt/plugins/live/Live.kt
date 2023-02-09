@@ -7,6 +7,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.*
 import kotlinx.html.*
 import kotlinx.html.stream.*
 import kotlinx.serialization.*
@@ -48,11 +49,26 @@ class LiveRouting(private val route: Route, private val scope: LiveViewScope) {
 
                 send(Frame.Text(view.render()))
 
+                suspend fun refresh() {
+                    send(Frame.Text(view.render()))
+                }
+
+                val job = launch {
+                    while (true) {
+                        delay(1000L)
+                        refresh()
+                    }
+                }
+
                 // TODO: Send server-side events/react to server view state updates
 
-                for (msg in incoming) {
-                    val content = view.render()
-                    send(Frame.Text(content))
+                try {
+                    for (msg in incoming) {
+                        val content = view.render()
+                        send(Frame.Text(content))
+                    }
+                } finally {
+                    job.cancel("done")
                 }
             }
 

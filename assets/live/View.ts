@@ -1,3 +1,5 @@
+import morphdom from "morphdom";
+
 import type Socket from "./Socket";
 
 export default class View {
@@ -26,6 +28,6 @@ export default class View {
   protected ondisconnect = () => {};
 
   protected onmessage = (event) => {
-    console.log(event.data);
+    morphdom(this.root, event.data);
   };
 }

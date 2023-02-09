@@ -16,22 +16,6 @@ export function connect(endpoint: string) {
 
   view.join();
 
-  socket.on("open", (event) => {
-    console.debug("socket open:", event);
-  });
-
-  socket.on("close", (event) => {
-    console.debug("socket close:", event);
-  });
-
-  socket.on("message", (event) => {
-    console.debug("socket message:", event);
-  });
-
-  socket.on("error", (event) => {
-    console.error("socket error:", event);
-  });
-
   socket.connect();
 
   return socket;
