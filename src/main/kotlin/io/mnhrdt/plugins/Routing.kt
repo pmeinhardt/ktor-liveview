@@ -7,14 +7,28 @@ import io.ktor.server.routing.*
 import io.mnhrdt.plugins.live.*
 import java.io.File
 import java.util.Date
+import kotlinx.coroutines.*
 import kotlinx.html.*
 
-class Index(private val connected: Boolean, private val name: String) : LiveView() {
+class Index(private val name: String) : LiveView() {
+    override fun mount() {
+        if (connected) {
+            launch {
+                while (true) {
+                    delay(1000L)
+                    assign("time", now())
+                }
+            }
+        }
+
+        assign("time", now())
+    }
+
     override fun render(): String =
         html {
             head { title { +"Hello $name" } }
             body {
-                p { +"It is ${now()} ($connected)" }
+                p { +"It is ${assigns["time"]} ($connected)" }
                 script(src = "/assets/index.js") {}
             }
         }
@@ -33,7 +47,7 @@ fun Application.configureRouting() {
         live(scope) {
             view("/") {
                 val name = parameters["name"] ?: "Ktor"
-                Index(connected, name)
+                Index(name)
             }
         }
 

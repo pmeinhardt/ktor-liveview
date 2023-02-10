@@ -1,14 +1,17 @@
 import morphdom from "morphdom";
 
 import type Socket from "./Socket";
+import type { Params } from "./types";
 
 export default class View {
   private readonly socket: Socket;
   private readonly root: HTMLElement;
+  private readonly params: Params;
 
-  constructor(socket: Socket, root: HTMLElement) {
+  constructor(socket: Socket, root: HTMLElement, params: Params) {
     this.socket = socket;
     this.root = root;
+    this.params = params;
   }
 
   join() {
@@ -21,13 +24,15 @@ export default class View {
 
   protected onconnect = () => {
     const path = window.location.pathname;
-    const parameters = { name: "Firefox" };
-    this.socket.send(JSON.stringify({ path, parameters }));
+    this.socket.send(JSON.stringify({ path, parameters: this.params }));
   };
 
-  protected ondisconnect = () => {};
+  protected ondisconnect = () => {
+    // ?
+  };
 
   protected onmessage = (event) => {
-    morphdom(this.root, event.data);
+    const message = JSON.parse(event.data);
+    morphdom(this.root, message.html);
   };
 }

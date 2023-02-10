@@ -1,3 +1,3 @@
 import { setup } from "./live";
 
-setup("/live");
+setup("/live", { name: ["Firefox"] });
