@@ -12,25 +12,29 @@ import kotlinx.html.*
 
 const val src = "/assets/index.js"
 
+class IndexState : LiveViewState() {
+    var time: Date by property(Date())
+}
+
 class Index(private val name: String) : LiveView() {
+    override val state = IndexState()
+
     override fun mount() {
         if (connected) {
             launch {
                 while (true) {
                     delay(1000L)
-                    assign("time", now())
+                    state.time = now()
                 }
             }
         }
-
-        assign("time", now())
     }
 
     override fun render(): String =
         html {
             head { title { +"Hello $name (connected=$connected)" } }
             body {
-                p { +"It is ${assigns["time"]}" }
+                p { +"It is ${state.time}" }
                 script(src = src) {}
             }
         }
@@ -38,16 +42,22 @@ class Index(private val name: String) : LiveView() {
     private fun now() = Date()
 }
 
+class CounterState : LiveViewState() {
+    var count: Int by property(0)
+}
+
 class Counter(private val initial: Int) : LiveView() {
+    override val state = CounterState()
+
     override fun mount() {
-        assign("count", initial)
+        state.count = initial
     }
 
     override fun render(): String =
         html {
             head { title { "count (connected=$connected)" } }
             body {
-                p { +"Count = ${assigns["count"]}" }
+                p { +"Count = ${state.count}" }
                 button { onClick = ""; +"Increment" }
                 script(src = src) {}
             }
@@ -55,7 +65,7 @@ class Counter(private val initial: Int) : LiveView() {
 
     // TODO: Hook up to button (method annotation?)
     private fun increment() {
-        assign("count", assigns["count"] as Int + 1)
+        state.count += 1
     }
 }
 

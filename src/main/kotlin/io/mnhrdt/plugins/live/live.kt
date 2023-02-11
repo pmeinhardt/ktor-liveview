@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package io.mnhrdt.plugins.live
 
 import io.ktor.http.*
@@ -6,6 +8,7 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
+import kotlin.properties.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import kotlinx.html.*
@@ -32,9 +35,6 @@ class LiveViewScope private constructor(options: Options) {
 class LiveViewContext(val application: Application, val parameters: Parameters)
 
 interface LiveEvent // TODO: Implementing classes need to be serializable (fun serializer(): KSerializer<…>)
-
-@Serializable
-data class LiveUpdate(val html: String) : LiveEvent
 
 class LiveViewSession(private val session: DefaultWebSocketServerSession) : CoroutineScope by session {
     suspend fun send(event: LiveEvent) = session.sendSerialized(event)
@@ -89,53 +89,77 @@ class LiveRouting(private val routing: Routing, private val scope: LiveViewScope
 
 fun Routing.live(scope: LiveViewScope, block: LiveRouting.() -> Unit) = LiveRouting(this, scope).apply(block)
 
+typealias Subscription<V> = (V) -> Unit
+typealias Unsubscribe = () -> Unit
+
+open class Observable<V> {
+    private val subscriptions = mutableSetOf<Subscription<V>>()
+
+    protected fun update(value: V) {
+        subscriptions.forEach { it(value) }
+    }
+
+    fun subscribe(callback: Subscription<V>): Unsubscribe {
+        val unsubscribe = { subscriptions -= callback }
+        subscriptions += callback
+        return unsubscribe
+    }
+}
+
+open class LiveViewState : Observable<LiveViewState>() {
+    fun <V> property(initial: V) = Delegates.observable(initial) { _, _, _ -> update(this) }
+}
+
+@Serializable
+data class LiveUpdate(val html: String) : LiveEvent
+
 abstract class LiveView : CoroutineScope {
-    override val coroutineContext get() = checkNotNull(session) { "View is not connected" }.coroutineContext
+    private var xsession: LiveViewSession? = null
+    private val session get() = checkNotNull(xsession) { "View is not connected" }
 
-    private var session: LiveViewSession? = null
-    val connected: Boolean get() = session != null
+    override val coroutineContext get() = session.coroutineContext
 
-    private val state = mutableMapOf<String, Any>()
-    val assigns = state as Map<String, Any>
+    val connected: Boolean get() = xsession != null
 
-    private var pending: Deferred<*>? = null
+    abstract val state: LiveViewState
 
     abstract fun mount()
 
     abstract fun render(): String
 
-    fun assign(key: String, value: Any) {
-        pending?.cancel()
-        state[key] = value
-        pending = session?.async { send(LiveUpdate(render())) }
-    }
+    private suspend fun send(event: LiveEvent) = session.send(event)
 
-    private suspend fun handle(event: LiveEvent) {}
-
-    private suspend fun send(event: LiveEvent) {
-        val session = checkNotNull(session) { "View is not connected" }
-        session.send(event)
-    }
+    private suspend fun receive() = session.receive()
 
     internal suspend fun join(session: LiveViewSession) {
-        check(this.session == null) { "View is joined to another session already" }
-        this.session = session
+        check(this.xsession == null) { "View is joined to another session already" }
+        this.xsession = session
+
+        var pending: Deferred<*>? = null
+
+        val unsubscribe = state.subscribe {
+            pending?.cancel()
+            pending = async { send(LiveUpdate(render())) }
+        }
 
         try {
             mount()
 
-            while (session.isActive) {
-                val event = session.receive()
+            while (isActive) {
+                val event = receive()
                 println("Received LiveEvent: $event")
                 // TODO: handle events
             }
         } catch (e: ClosedReceiveChannelException) {
             // …
         } finally {
-            this.session = null
+            unsubscribe()
+            pending?.cancel()
+            this.xsession = null
         }
     }
 }
 
+@Suppress("UnusedReceiverParameter")
 fun LiveView.html(block: HTML.() -> Unit): String =
     buildString { append("<!DOCTYPE html>\n").appendHTML().html(block = block) }
