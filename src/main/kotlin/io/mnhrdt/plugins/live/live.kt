@@ -69,9 +69,9 @@ class LiveRouting(private val routing: Routing, private val scope: LiveViewScope
         }
     }
 
-    fun view(path: String, params: Parameters.() -> Parameters = { this }, init: LiveViewContext.() -> LiveView) {
+    fun view(path: String, init: LiveViewContext.() -> LiveView) {
         routing.get(path) {
-            val context = LiveViewContext(call.application, params(call.parameters))
+            val context = LiveViewContext(call.application, call.parameters)
             val view = init(context)
             view.mount()
 
