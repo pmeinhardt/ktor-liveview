@@ -67,8 +67,11 @@ class Counter(private val initial: Int) : LiveView() {
             }
         }
 
-    // TODO: Hook up to button (method annotation?)
-    private fun increment() {
+    override val dismap = mapOf(
+        "increment" to this::increment
+    )
+
+    fun increment() {
         state.count += 1
     }
 }

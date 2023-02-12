@@ -9,6 +9,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import kotlin.properties.*
+import kotlin.reflect.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.flow.*
@@ -124,11 +125,15 @@ abstract class LiveView : CoroutineScope {
 
     val connected: Boolean get() = xsession != null
 
+    open val dismap: Map<String, KFunction<Unit>> = emptyMap()
+
     abstract val state: LiveViewState
 
     abstract fun mount()
 
     abstract fun render(): String
+
+    private fun dispatch(identifier: String) = dismap[identifier]?.call()
 
     private suspend fun send(event: LiveEvent) = session.send(event)
 
@@ -137,7 +142,7 @@ abstract class LiveView : CoroutineScope {
     private suspend fun handle(event: LiveEvent) {
         when (event) {
             is LiveRefresh -> send(LiveUpdate(render()))
-            is LiveInvocation -> println("Invocation: $event")
+            is LiveInvocation -> dispatch(event.identifier)
             is LiveUpdate -> TODO("This is an event only intended to be sent to the client, not received here")
         }
     }
