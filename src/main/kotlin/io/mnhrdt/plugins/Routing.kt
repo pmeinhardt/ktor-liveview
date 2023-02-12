@@ -46,8 +46,14 @@ class CounterState : LiveViewState() {
     var count: Int by property(0)
 }
 
+class CounterOps(state: CounterState) : LiveOps() {
+    val increment = fn("increment") { state.count += 1 }
+}
+
 class Counter(private val initial: Int) : LiveView() {
     override val state = CounterState()
+
+    override val ops = CounterOps(state)
 
     override fun mount() {
         state.count = initial
@@ -60,20 +66,12 @@ class Counter(private val initial: Int) : LiveView() {
                 p { +"Count = ${state.count}" }
                 button {
                     type = ButtonType.button
-                    live["click"] = "increment"
+                    live["click"] = ops.increment
                     +"Increment"
                 }
                 script(src = src) {}
             }
         }
-
-    override val dismap = mapOf(
-        "increment" to this::increment
-    )
-
-    fun increment() {
-        state.count += 1
-    }
 }
 
 val scope = LiveViewScope {

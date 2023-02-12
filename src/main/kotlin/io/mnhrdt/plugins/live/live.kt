@@ -9,7 +9,6 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import kotlin.properties.*
-import kotlin.reflect.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.flow.*
@@ -105,6 +104,20 @@ open class LiveViewState {
     }
 }
 
+open class LiveOps() {
+    private val reg: MutableMap<String, () -> Unit> = mutableMapOf()
+
+    fun fn(identifier: String, body: () -> Unit): String {
+        reg[identifier] = body
+        return identifier
+    }
+
+    fun call(identifier: String) {
+        val fn = checkNotNull(reg[identifier]) { "Function $identifier not registered" }
+        fn()
+    }
+}
+
 @Serializable
 @SerialName("update")
 data class LiveUpdate(val html: String) : LiveEvent()
@@ -125,7 +138,7 @@ abstract class LiveView : CoroutineScope {
 
     val connected: Boolean get() = xsession != null
 
-    open val dismap: Map<String, KFunction<Unit>> = emptyMap()
+    protected open val ops = LiveOps()
 
     abstract val state: LiveViewState
 
@@ -133,7 +146,7 @@ abstract class LiveView : CoroutineScope {
 
     abstract fun render(): String
 
-    private fun dispatch(identifier: String) = dismap[identifier]?.call()
+    private fun dispatch(identifier: String) = ops.call(identifier)
 
     private suspend fun send(event: LiveEvent) = session.send(event)
 
@@ -179,7 +192,7 @@ abstract class LiveView : CoroutineScope {
 
 @Suppress("UnusedReceiverParameter")
 fun LiveView.html(block: HTML.() -> Unit): String =
-    buildString { append("<!DOCTYPE html>\n").appendHTML().html(block = block) }
+    buildString { append("<!DOCTYPE html>\n").appendHTML().html(block =  block) }
 
 class HTMLTagLiveAttributes(private val tag: HTMLTag) {
     operator fun set(key: String, value: String) { tag.attributes[name(key)] = value }
