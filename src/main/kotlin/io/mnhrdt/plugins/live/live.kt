@@ -11,6 +11,7 @@ import io.ktor.server.websocket.*
 import kotlin.properties.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
+import kotlinx.coroutines.flow.*
 import kotlinx.html.*
 import kotlinx.html.stream.*
 import kotlinx.serialization.*
@@ -89,29 +90,24 @@ class LiveRouting(private val routing: Routing, private val scope: LiveViewScope
 
 fun Routing.live(scope: LiveViewScope, block: LiveRouting.() -> Unit) = LiveRouting(this, scope).apply(block)
 
-typealias Subscription<V> = (V) -> Unit
-typealias Unsubscribe = () -> Unit
+open class LiveViewState {
+    private val changes = MutableSharedFlow<LiveViewState>(0, 1, BufferOverflow.DROP_LATEST)
 
-open class Observable<V> {
-    private val subscriptions = mutableSetOf<Subscription<V>>()
+    val updates = changes.asSharedFlow()
 
-    protected fun update(value: V) {
-        subscriptions.forEach { it(value) }
+    fun <V> property(initial: V) = Delegates.observable(initial) { _, old, new ->
+        if (new != old) {
+            val self = this
+            runBlocking { changes.emit(self) }
+        }
     }
-
-    fun subscribe(callback: Subscription<V>): Unsubscribe {
-        val unsubscribe = { subscriptions -= callback }
-        subscriptions += callback
-        return unsubscribe
-    }
-}
-
-open class LiveViewState : Observable<LiveViewState>() {
-    fun <V> property(initial: V) = Delegates.observable(initial) { _, _, _ -> update(this) }
 }
 
 @Serializable
 data class LiveUpdate(val html: String) : LiveEvent
+
+@Serializable
+class LiveRefresh : LiveEvent
 
 abstract class LiveView : CoroutineScope {
     private var xsession: LiveViewSession? = null
@@ -131,30 +127,37 @@ abstract class LiveView : CoroutineScope {
 
     private suspend fun receive() = session.receive()
 
+    private suspend fun handle(event: LiveEvent) {
+        when (event) {
+            is LiveRefresh -> send(LiveUpdate(render()))
+        }
+    }
+
     internal suspend fun join(session: LiveViewSession) {
         check(this.xsession == null) { "View is joined to another session already" }
         this.xsession = session
 
-        var pending: Deferred<*>? = null
+        val updates = state.updates.map { LiveRefresh() }
 
-        val unsubscribe = state.subscribe {
-            pending?.cancel()
-            pending = async { send(LiveUpdate(render())) }
+        val incoming = flow {
+            while (session.isActive) {
+                val event = receive()
+                emit(event)
+            }
         }
+
+        val events = merge(updates, incoming)
 
         try {
             mount()
 
-            while (isActive) {
-                val event = receive()
-                println("Received LiveEvent: $event")
-                // TODO: handle events
+            events.fold(0) { count, event ->
+                handle(event)
+                count + 1
             }
         } catch (e: ClosedReceiveChannelException) {
             // …
         } finally {
-            unsubscribe()
-            pending?.cancel()
             this.xsession = null
         }
     }
