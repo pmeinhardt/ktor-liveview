@@ -166,3 +166,16 @@ abstract class LiveView : CoroutineScope {
 @Suppress("UnusedReceiverParameter")
 fun LiveView.html(block: HTML.() -> Unit): String =
     buildString { append("<!DOCTYPE html>\n").appendHTML().html(block = block) }
+
+class HTMLTagLiveAttributes(private val tag: HTMLTag) {
+    operator fun set(key: String, value: String) { tag.attributes[name(key)] = value }
+
+    operator fun get(key: String): String? = tag.attributes[name(key)]
+
+    companion object {
+        const val prefix = "data-ktor"
+        fun name(key: String) = "$prefix-$key"
+    }
+}
+
+val HTMLTag.live get() = HTMLTagLiveAttributes(this)

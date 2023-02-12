@@ -58,7 +58,11 @@ class Counter(private val initial: Int) : LiveView() {
             head { title { "count (connected=$connected)" } }
             body {
                 p { +"Count = ${state.count}" }
-                button { onClick = ""; +"Increment" }
+                button {
+                    type = ButtonType.button
+                    live["click"] = "increment"
+                    +"Increment"
+                }
                 script(src = src) {}
             }
         }
