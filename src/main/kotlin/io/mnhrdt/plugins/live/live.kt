@@ -35,7 +35,8 @@ class LiveViewScope private constructor(options: Options) {
 
 class LiveViewContext(val application: Application, val parameters: Parameters)
 
-interface LiveEvent // TODO: Implementing classes need to be serializable (fun serializer(): KSerializer<…>)
+@Serializable
+sealed class LiveEvent
 
 class LiveViewSession(private val session: DefaultWebSocketServerSession) : CoroutineScope by session {
     suspend fun send(event: LiveEvent) = session.sendSerialized(event)
@@ -104,10 +105,16 @@ open class LiveViewState {
 }
 
 @Serializable
-data class LiveUpdate(val html: String) : LiveEvent
+@SerialName("update")
+data class LiveUpdate(val html: String) : LiveEvent()
 
 @Serializable
-class LiveRefresh : LiveEvent
+@SerialName("refresh")
+class LiveRefresh : LiveEvent()
+
+@Serializable
+@SerialName("invoke")
+data class LiveInvocation(val identifier: String) : LiveEvent()
 
 abstract class LiveView : CoroutineScope {
     private var xsession: LiveViewSession? = null
@@ -130,6 +137,8 @@ abstract class LiveView : CoroutineScope {
     private suspend fun handle(event: LiveEvent) {
         when (event) {
             is LiveRefresh -> send(LiveUpdate(render()))
+            is LiveInvocation -> println("Invocation: $event")
+            is LiveUpdate -> TODO("This is an event only intended to be sent to the client, not received here")
         }
     }
 
