@@ -1,5 +1,6 @@
 import morphdom from "morphdom";
 
+import { all, attr } from "./binding";
 import type Socket from "./Socket";
 import type { Params } from "./types";
 
@@ -12,6 +13,18 @@ export default class View {
     this.socket = socket;
     this.root = root;
     this.params = params;
+  }
+
+  setup() {
+    all(this.root, "click").forEach((node) => {
+      node.addEventListener("click", () => {
+        const data = JSON.stringify({
+          type: "invoke",
+          identifier: attr(node, "click"),
+        });
+        this.socket.send(data);
+      });
+    });
   }
 
   join() {

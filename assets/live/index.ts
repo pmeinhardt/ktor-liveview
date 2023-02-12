@@ -16,6 +16,7 @@ export function connect(endpoint: string, params: Params) {
   const socket = new Socket(resolve(endpoint));
   const view = new View(socket, document.documentElement, params);
 
+  view.setup();
   view.join();
 
   socket.connect();
