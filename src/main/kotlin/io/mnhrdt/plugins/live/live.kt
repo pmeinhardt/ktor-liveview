@@ -38,8 +38,11 @@ class LiveViewContext(val application: Application, val parameters: Parameters)
 @Serializable
 sealed class LiveEvent
 
+@Serializable
+sealed class LiveUpdate
+
 class LiveViewSession(private val session: DefaultWebSocketServerSession) : CoroutineScope by session {
-    suspend fun send(event: LiveEvent) = session.sendSerialized(event)
+    suspend fun send(update: LiveUpdate) = session.sendSerialized(update)
 
     suspend fun flush() = session.flush()
 
@@ -128,12 +131,12 @@ open class LiveOps() {
 }
 
 @Serializable
-@SerialName("update")
-data class LiveUpdate(val html: String) : LiveEvent()
+@SerialName("render")
+data class LiveRender(val html: String) : LiveUpdate()
 
 @Serializable
 @SerialName("refresh")
-class LiveRefresh : LiveEvent()
+object LiveRefresh : LiveEvent()
 
 @Serializable
 @SerialName("invoke")
@@ -157,15 +160,14 @@ abstract class LiveView : CoroutineScope {
 
     private fun dispatch(identifier: String) = ops.call(identifier)
 
-    private suspend fun send(event: LiveEvent) = session.send(event)
+    private suspend fun send(update: LiveUpdate) = session.send(update)
 
     private suspend fun receive() = session.receive()
 
     private suspend fun handle(event: LiveEvent) {
         when (event) {
-            is LiveRefresh -> send(LiveUpdate(render()))
+            is LiveRefresh -> send(LiveRender(render()))
             is LiveInvocation -> dispatch(event.identifier)
-            is LiveUpdate -> TODO("This is an event only intended to be sent to the client, not received here")
         }
     }
 
@@ -173,7 +175,7 @@ abstract class LiveView : CoroutineScope {
         check(this.xsession == null) { "View is joined to another session already" }
         this.xsession = session
 
-        val updates = state.updates.map { LiveRefresh() }
+        val updates = state.updates.map { LiveRefresh }
 
         val incoming = flow {
             while (session.isActive) {
