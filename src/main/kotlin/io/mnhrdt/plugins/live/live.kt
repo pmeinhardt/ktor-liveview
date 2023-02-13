@@ -140,7 +140,7 @@ abstract class LiveView : CoroutineScope {
 
     protected open val ops = LiveOps()
 
-    abstract val state: LiveViewState
+    protected abstract val state: LiveViewState
 
     abstract fun mount()
 
