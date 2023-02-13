@@ -91,7 +91,7 @@ class LiveRouting(private val routing: Routing, private val scope: LiveViewScope
 
 fun Routing.live(scope: LiveViewScope, block: LiveRouting.() -> Unit) = LiveRouting(this, scope).apply(block)
 
-open class LiveViewState {
+abstract class LiveViewState {
     private val changes = MutableSharedFlow<LiveViewState>(0, 1, BufferOverflow.DROP_LATEST)
 
     val updates = changes.asSharedFlow()
@@ -112,9 +112,18 @@ open class LiveOps() {
         return identifier
     }
 
-    fun call(identifier: String) {
-        val fn = checkNotNull(reg[identifier]) { "Function $identifier not registered" }
-        fn()
+    internal fun call(identifier: String) {
+        val fn = reg[identifier]
+
+        if (fn == null) {
+            handle(identifier)
+        } else {
+            fn()
+        }
+    }
+
+    open fun handle(identifier: String) {
+        throw NotImplementedError("Unhandled invocation: \"$identifier\"")
     }
 }
 
