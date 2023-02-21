@@ -17,7 +17,7 @@ import kotlinx.html.stream.*
 import kotlinx.serialization.*
 
 class LiveViewScope private constructor(options: Options) {
-    internal val handlers = mutableMapOf<String, LiveViewContext.() -> LiveView>()
+    internal val factories = mutableMapOf<String, LiveViewFactoryInterface<LiveViewState, LiveView<LiveViewState>>>()
     internal var installed = false
 
     val endpoint: String
@@ -50,7 +50,7 @@ class LiveViewSession(private val session: DefaultWebSocketServerSession) : Coro
 }
 
 @Serializable
-data class LiveConnect(val path: String, val parameters: Map<String, List<String>>)
+data class LiveConnect(val path: String, val state: LiveViewState)
 
 class LiveRouting(private val routing: Routing, private val scope: LiveViewScope) {
     init {
@@ -59,14 +59,12 @@ class LiveRouting(private val routing: Routing, private val scope: LiveViewScope
         if (!scope.installed) {
             routing.webSocket(scope.endpoint) {
                 val connect = receiveDeserialized<LiveConnect>()
-                val init = scope.handlers[connect.path]
+                val factory = scope.factories[connect.path]
 
-                checkNotNull(init) { "No view registered for path ${connect.path}" }
+                checkNotNull(factory) { "No view registered for path ${connect.path}" }
 
-                val context = LiveViewContext(application, parametersOf(connect.parameters))
                 val session = LiveViewSession(this)
-
-                val view = init(context)
+                val view = factory.create(connect.state)
                 view.join(session)
             }
 
@@ -74,10 +72,10 @@ class LiveRouting(private val routing: Routing, private val scope: LiveViewScope
         }
     }
 
-    fun view(path: String, init: LiveViewContext.() -> LiveView) {
+    fun <S : LiveViewState, V : LiveView<S>> view(path: String, factory: LiveViewFactoryInterface<S, V>, init: LiveViewContext.() -> S) {
         routing.get(path) {
             val context = LiveViewContext(call.application, call.parameters)
-            val view = init(context)
+            val view = factory.create(init(context))
             view.mount()
 
             val content = view.render()
@@ -88,15 +86,18 @@ class LiveRouting(private val routing: Routing, private val scope: LiveViewScope
             call.respond(TextContent(content, type, ok))
         }
 
-        scope.handlers[path] = init
+        scope.factories[path] = factory as LiveViewFactoryInterface<LiveViewState, LiveView<LiveViewState>>
     }
 }
 
 fun Routing.live(scope: LiveViewScope, block: LiveRouting.() -> Unit) = LiveRouting(this, scope).apply(block)
 
+@Serializable
 abstract class LiveViewState {
+    @Transient
     private val changes = MutableSharedFlow<LiveViewState>(0, 1, BufferOverflow.DROP_LATEST)
 
+    @Transient
     val updates = changes.asSharedFlow()
 
     fun <V> property(initial: V) = Delegates.observable(initial) { _, old, new ->
@@ -142,7 +143,15 @@ object LiveRefresh : LiveEvent()
 @SerialName("invoke")
 data class LiveInvocation(val identifier: String) : LiveEvent()
 
-abstract class LiveView : CoroutineScope {
+fun interface LiveViewFactoryInterface<State : LiveViewState, View : LiveView<State>> {
+    fun create(state: State): View
+}
+
+open class LiveViewFactory<State : LiveViewState, View : LiveView<State>>(private val block: (State) -> View) : LiveViewFactoryInterface<State, View> {
+    override fun create(state: State): View = block(state)
+}
+
+abstract class LiveView<State : LiveViewState>(protected val state: State) : CoroutineScope {
     private var xsession: LiveViewSession? = null
     private val session get() = checkNotNull(xsession) { "View is not connected" }
 
@@ -150,9 +159,7 @@ abstract class LiveView : CoroutineScope {
 
     val connected: Boolean get() = xsession != null
 
-    protected open val ops = LiveOps()
-
-    protected abstract val state: LiveViewState
+    open val ops = LiveOps()
 
     abstract fun mount()
 
@@ -202,7 +209,7 @@ abstract class LiveView : CoroutineScope {
 }
 
 @Suppress("UnusedReceiverParameter")
-fun LiveView.html(block: HTML.() -> Unit): String =
+fun LiveView<*>.html(block: HTML.() -> Unit): String =
     buildString { append("<!DOCTYPE html>\n").appendHTML().html(block =  block) }
 
 class HTMLTagLiveAttributes(private val tag: HTMLTag) {

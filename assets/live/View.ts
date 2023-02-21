@@ -2,17 +2,14 @@ import morphdom from "morphdom";
 
 import { all, attr } from "./binding";
 import type Socket from "./Socket";
-import type { Params } from "./types";
 
 export default class View {
   private readonly socket: Socket;
   private readonly root: HTMLElement;
-  private readonly params: Params;
 
-  constructor(socket: Socket, root: HTMLElement, params: Params) {
+  constructor(socket: Socket, root: HTMLElement) {
     this.socket = socket;
     this.root = root;
-    this.params = params;
   }
 
   setup() {
@@ -37,7 +34,8 @@ export default class View {
 
   protected onconnect = () => {
     const path = window.location.pathname;
-    this.socket.send(JSON.stringify({ path, parameters: this.params }));
+    const state = JSON.parse(attr(this.root, "state"));
+    this.socket.send(JSON.stringify({ path, state }));
   };
 
   protected ondisconnect = () => {

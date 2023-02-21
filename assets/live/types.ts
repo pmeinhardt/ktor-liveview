@@ -1,5 +1,3 @@
-export type Params = Record<string, string[]>;
-
 export type TypedArray =
   | Int8Array
   | Uint8Array

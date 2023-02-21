@@ -1,3 +1,4 @@
-import { setup } from "./live";
+import live from "./live";
 
-setup("/live", { name: ["Firefox"] });
+const endpoint = "/live";
+live(endpoint);

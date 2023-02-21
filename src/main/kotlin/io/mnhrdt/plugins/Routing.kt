@@ -6,18 +6,22 @@ import io.ktor.server.plugins.autohead.*
 import io.ktor.server.routing.*
 import io.mnhrdt.plugins.live.*
 import java.io.File
-import java.util.Date
+import java.util.*
 import kotlinx.coroutines.*
 import kotlinx.html.*
+import kotlinx.serialization.*
+import kotlinx.serialization.json.*
 
 const val src = "/assets/index.js"
 
+@Serializable
+@SerialName("IndexState")
 class IndexState : LiveViewState() {
     var time: Date by property(Date())
 }
 
-class Index(private val name: String) : LiveView() {
-    override val state = IndexState()
+class Index(state: IndexState) : LiveView<IndexState>(state) {
+    companion object : LiveViewFactory<IndexState, Index>({ state -> Index(state) })
 
     override fun mount() {
         if (connected) {
@@ -31,8 +35,9 @@ class Index(private val name: String) : LiveView() {
     }
 
     override fun render(): String =
-        html {
-            head { title { +"Hello $name (connected=$connected)" } }
+        html() {
+            live["state"] = Json.encodeToString(state)
+            head { title { +"Hello ${if (connected) "Browser" else "Ktor"}!" } }
             body {
                 p { +"It is ${state.time}" }
                 script(src = src) {}
@@ -42,26 +47,24 @@ class Index(private val name: String) : LiveView() {
     private fun now() = Date()
 }
 
-class CounterState : LiveViewState() {
-    var count: Int by property(0)
+class CounterState(initial: Int) : LiveViewState() {
+    var count: Int by property(initial)
 }
 
 class CounterOps(state: CounterState) : LiveOps() {
     val increment = fn("increment") { state.count += 1 }
 }
 
-class Counter(private val initial: Int) : LiveView() {
-    override val state = CounterState()
+class Counter(state: CounterState) : LiveView<CounterState>(state) {
+    companion object : LiveViewFactory<CounterState, Counter>({ state -> Counter(state) })
 
     override val ops = CounterOps(state)
 
-    override fun mount() {
-        state.count = initial
-    }
+    override fun mount() {}
 
     override fun render(): String =
         html {
-            head { title { "count (connected=$connected)" } }
+            head { title { "Count (connected=$connected)" } }
             body {
                 p { +"Count = ${state.count}" }
                 button {
@@ -83,14 +86,13 @@ fun Application.configureRouting() {
 
     routing {
         live(scope) {
-            view("/") {
-                val name = parameters["name"] ?: "Ktor"
-                Index(name)
+            view("/", Index) {
+                IndexState()
             }
 
-            view("/counter") {
+            view("/counter", Counter) {
                 val initial = parameters["initial"] ?: "0"
-                Counter(initial.toInt())
+                CounterState(initial.toInt())
             }
         }
 

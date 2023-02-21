@@ -1,23 +1,21 @@
 import resolve from "./resolve";
 import Socket from "./Socket";
-import type { Params } from "./types";
 import View from "./View";
 
-export function setup(endpoint: string, params: Params) {
-  if (["complete", "interactive", "loaded"].includes(document.readyState)) {
-    connect(endpoint, params);
-  } else {
-    const deferred = () => connect(endpoint, params);
-    document.addEventListener("DOMContentLoaded", deferred);
-  }
-}
-
-export function connect(endpoint: string, params: Params) {
+function connect(endpoint: string) {
   const socket = new Socket(resolve(endpoint));
-  const view = new View(socket, document.documentElement, params);
+  const view = new View(socket, document.documentElement);
 
   view.setup();
   view.join();
 
   socket.connect();
+}
+
+export default function (endpoint: string) {
+  if (["complete", "interactive", "loaded"].includes(document.readyState)) {
+    connect(endpoint);
+  } else {
+    document.addEventListener("DOMContentLoaded", () => connect(endpoint));
+  }
 }
